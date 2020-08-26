@@ -1,0 +1,12 @@
+AMA3B1KK-KBR_MemoryMap.xml
+AmbiqSDK
+Apollo_Flash.icf
+apollo3_Registers.xml
+apollo3_segger_1M.ld
+mpy_apollo3/
+mpy_apollo3.emProject
+mpy_apollo3.emSession
+mpy_apollo3.ind
+mpy_apollo3_Debug.jlink
+mpy_apollo3_Release.jlink
+segger_link_1M.xml
