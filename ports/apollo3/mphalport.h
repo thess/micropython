@@ -37,6 +37,8 @@ __attribute__((always_inline)) static inline uint32_t mp_hal_ticks_ms(void)
     // Use RTOS ticks for MS timer
     return xTaskGetTickCount();
 }
+// Task wakeup from ISR
+extern void mp_hal_wake_main_task_from_isr(void);
 
 // Using input buffer
 extern ringbuf_t stdin_ringbuf;
@@ -47,14 +49,16 @@ extern ringbuf_t stdin_ringbuf;
 #include "am_hal_gpio.h"
 #include "modmachine.h"
 
-#define MP_HAL_PIN_FMT "%u"
-#define mp_hal_pin_obj_t uint32_t
-#define mp_hal_get_pin_obj(o) mp_obj_get_pin(o)
-#define mp_hal_pin_name(p) (p)
+// Not in am_hal_gpio.h?
+extern uint32_t ap3_get_pincfg(uint32_t ui32Pin,
+                                      am_hal_gpio_pincfg_t *sPincfg);
 
-void mp_hal_pin_input(mp_hal_pin_obj_t pin);
-void mp_hal_pin_output(mp_hal_pin_obj_t pin);
-void mp_hal_pin_open_drain(mp_hal_pin_obj_t pin);
+#define MP_HAL_PIN_FMT "%u"
+#define mp_hal_pin_obj_t uint8_t
+
+mp_hal_pin_obj_t machine_pin_get_id(mp_obj_t pin_in);
+#define mp_hal_get_pin_obj(o) machine_pin_get_id(o)
+#define mp_hal_pin_name(p) (p)
 
 #define mp_hal_pin_od_low(p) am_hal_gpio_output_clear(p)
 
@@ -62,10 +66,8 @@ void mp_hal_pin_open_drain(mp_hal_pin_obj_t pin);
 
 #define mp_hal_pin_read(p) am_hal_gpio_input_read(p)
 #define mp_hal_pin_write(p, v) { \
-    (v) ? { am_hal_gpio_output_set(p) } : { am_hal_gpio_output_clear(p) } \
-};
+    if (v) { am_hal_gpio_output_set(p); } else { am_hal_gpio_output_clear(p); } \
+}
 
-// ***TODO: Temp for now
-#define mp_obj_get_pin(o) (0)
 
 #endif //MICROPY_INCLUDED_APOLLO3_MPHALPORT_H

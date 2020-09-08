@@ -40,7 +40,8 @@
 #include "lib/utils/pyexec.h"
 
 #include "am_hal_sysctrl.h"
-//#include "modmachine.h"
+#include "am_util_delay.h"
+#include "modmachine.h"
 #include "uart.h"
 
 #if MICROPY_PY_THREAD
@@ -71,8 +72,8 @@ soft_reset:
     mp_obj_list_init(mp_sys_argv, 0);
     readline_init0();
 
-    // ****TODO: initialise peripherals
-    // machine_pins_init();
+    // Init peripherals
+    machine_pins_init();
 
 #if MICROPY_MODULE_FROZEN
     // run boot-up scripts
@@ -109,8 +110,8 @@ soft_reset:
 
     mp_hal_stdout_tx_str("MPY: soft reboot\r\n");
 
-    // ****TODO: deinitialise peripherals
-    //machine_pins_deinit();
+    // De-init peripherals
+    machine_pins_deinit();
 
     mp_deinit();
     am_hal_uart_tx_flush(g_phUART);
@@ -120,9 +121,14 @@ soft_reset:
 void NORETURN __fatal_error(const char *msg) {
     am_hal_uart_tx_flush(g_phUART);
     am_hal_sysctrl_aircr_reset();
+   // Set up BSP status led
+    am_hal_gpio_pinconfig(am_bsp_psLEDs[AM_BSP_LED0].ui32GPIONumber, g_AM_HAL_GPIO_OUTPUT);
+    am_devices_led_off(am_bsp_psLEDs, AM_BSP_LED0);
     while (1) {
-	// Flash some LEDs
-        am_devices_led_on(am_bsp_psLEDs, 0);
+        // Flash status LED
+        am_devices_led_toggle(am_bsp_psLEDs, AM_BSP_GPIO_LED0);
+        // Delay a bit
+        am_util_delay_ms(500);
     }
 }
 
@@ -137,7 +143,7 @@ void MP_WEAK __assert_func(const char *file, int line, const char *func, const c
     __fatal_error("Assertion failed");
 }
 
-#ifdef SEGGER_ASSERT
+#ifdef SEGGER_BUILD
 void MP_WEAK __assert(const char *expr, const char *file, int line) {
     __assert_func(file, line, NULL, expr);
 }

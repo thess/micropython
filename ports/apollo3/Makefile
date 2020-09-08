@@ -154,6 +154,7 @@ MICROPY_VFS_LFS2 = 1
 #MICROPY_PY_BTREE = 1
 #BTREE_DEFS_EXTRA = -DDEFPSIZE=1024 -DMINCACHE=3
 
+BOARD_DIR ?= $(PROJECTPATH)
 FROZEN_MANIFEST ?= manifest.py
 
 # include py core make definitions
@@ -199,6 +200,8 @@ SRC_C = $(STARTUP_FILE) \
 	modartemis.c \
 	fatfs_port.c \
 	mphalport.c \
+	modmachine.c \
+	machine_pin.c \
 	$(SRC_MOD)
 
 RTOS_SRC_C = port.c \
@@ -209,12 +212,13 @@ RTOS_SRC_C = port.c \
 	heap_5.c \
 	event_groups.c
 
-SDK_SRC_C = am_util_debug.c \
+SDK_SRC_C = am_devices_led.c \
 	am_util_delay.c \
-	am_util_faultisr.c \
-	am_util_id.c \
 	am_util_stdio.c \
-	am_devices_led.c
+
+#am_util_debug.c \
+#	am_util_faultisr.c \
+#	am_util_id.c \
 
 LIB_SRC_C = $(addprefix lib/, \
 	mp-readline/readline.c \
@@ -253,13 +257,20 @@ CSTD = -std=c99
 
 CFLAGS = -mthumb -mcpu=$(CPU) -mfpu=$(FPU) -mfloat-abi=$(FABI)
 CFLAGS+= -ffunction-sections -fdata-sections -fomit-frame-pointer
-CFLAGS+= $(CSTD) -Wall -g -O0
+
+# Debugging/Optimization
+ifeq ($(DEBUG), 1)
+CFLAGS += -g -O0 -D_DEBUG
+else
+CFLAGS += -g -Os -DNDEBUG
+endif
+CFLAGS+= $(CSTD) -Wall
 CFLAGS+= $(DEFINES)
 CFLAGS+= $(INC)
 
 LFLAGS = -mthumb -mcpu=$(CPU) -mfpu=$(FPU) -mfloat-abi=$(FABI)
 LFLAGS+= -nostartfiles -static
-LFLAGS+= -Wl,--gc-sections,--entry,Reset_Handler,-Map,$(BUILD)/$(TARGET).map
+LFLAGS+= -Wl,--gc-sections,--entry,Reset_Handler,-Map,$(BUILD)/$(TARGET).map,--cref
 LFLAGS+= -Wl,--start-group -lm -lc -lgcc $(LIBS) -Wl,--end-group
 
 # Additional user specified CFLAGS
@@ -268,6 +279,9 @@ CFLAGS+=$(EXTRA_CFLAGS) $(CFLAGS_MOD)
 CPFLAGS = -Obinary
 
 ODFLAGS = -S
+
+# Options for mpy-cross
+MPY_CROSS_FLAGS += -march=armv7emsp
 
 # MicroPython mkrules expects OBJ := list of object modules
 OBJ += $(PY_O)

@@ -83,7 +83,7 @@ void uart_init(void) {
     return;
 }
 
-void am_uart_isr(void *arg) {
+void am_uart_isr(void) {
     uint32_t ui32Status;
 
     am_hal_uart_interrupt_status_get(g_phUART, &ui32Status, true);

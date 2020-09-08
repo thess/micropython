@@ -139,10 +139,6 @@ main(void)
     am_hal_stimer_config(AM_HAL_STIMER_HFRC_3MHZ);
 #endif
 
-    // Set up BSP status led
-    am_hal_gpio_pinconfig(am_bsp_psLEDs[0].ui32GPIONumber, g_AM_HAL_GPIO_OUTPUT);
-    am_devices_led_off(am_bsp_psLEDs, 0);
-
     // Enable interrupts here
     am_hal_interrupt_master_enable();
 

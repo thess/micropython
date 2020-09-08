@@ -47,7 +47,7 @@
 #include "mphalport.h"
 #include "uart.h"
 
-TaskHandle_t mp_main_task_handle;
+extern TaskHandle_t xMicroPyTask;
 
 static uint8_t stdin_ringbuf_array[256];
 ringbuf_t stdin_ringbuf = {stdin_ringbuf_array, sizeof(stdin_ringbuf_array)};
@@ -152,9 +152,9 @@ void mp_hal_delay_ms(uint32_t ms) {
 }
 
 void mp_hal_delay_us(uint32_t us) {
-    // these constants are tested for a 240MHz clock
-    const uint32_t this_overhead = 5;
-    const uint32_t pend_overhead = 150;
+    // these approx constants are for a 48MHz clock
+    const uint32_t this_overhead = 1;
+    const uint32_t pend_overhead = 50;
 
     // return if requested delay is less than calling overhead
     if (us < this_overhead) {
@@ -181,7 +181,7 @@ void mp_hal_delay_us(uint32_t us) {
 // Wake up the main task if it is sleeping
 void mp_hal_wake_main_task_from_isr(void) {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    vTaskNotifyGiveFromISR(mp_main_task_handle, &xHigherPriorityTaskWoken);
+    vTaskNotifyGiveFromISR(xMicroPyTask, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
@@ -200,4 +200,12 @@ void gc_collect(void) {
 
     // end the GC
     gc_collect_end();
+}
+
+uint64_t mp_hal_time_ns(void) {
+    uint64_t ns = 0;
+#if MICROPY_HW_ENABLE_RTC
+    // ****TODO: Get time from RTC
+#endif
+    return ns;
 }

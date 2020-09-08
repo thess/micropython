@@ -31,6 +31,8 @@
 
 // emitters
 #define MICROPY_PERSISTENT_CODE_LOAD        (1)
+#define MICROPY_EMIT_THUMB                  (1)
+#define MICROPY_EMIT_THUMB_INLINE           (1)
 
 // compiler configuration
 #define MICROPY_COMP_MODULE_CONST           (1)
@@ -133,7 +135,6 @@
 #endif
 
 // extended modules
-#if 0
 #define MICROPY_PY_UASYNCIO                 (1)
 #define MICROPY_PY_UCTYPES                  (1)
 #define MICROPY_PY_UZLIB                    (1)
@@ -146,22 +147,10 @@
 #define MICROPY_PY_UBINASCII_CRC32          (1)
 #define MICROPY_PY_URANDOM                  (1)
 #define MICROPY_PY_URANDOM_EXTRA_FUNCS      (1)
-#define MICROPY_PY_OS_DUPTERM               (1)
-#endif
-
+// ****TODO:
+//#define MICROPY_PY_OS_DUPTERM               (1)
 #define MICROPY_PY_MACHINE                  (1)
 #define MICROPY_PY_MACHINE_PIN_MAKE_NEW     mp_pin_make_new
-#define MICROPY_PY_MACHINE_PULSE            (1)
-#define MICROPY_PY_MACHINE_I2C              (1)
-#define MICROPY_PY_MACHINE_I2C_MAKE_NEW     machine_hw_i2c_make_new
-#if 0
-#define MICROPY_PY_MACHINE_SPI              (1)
-#define MICROPY_PY_MACHINE_SPI_MSB          (0)
-#define MICROPY_PY_MACHINE_SPI_LSB          (1)
-#define MICROPY_PY_MACHINE_SPI_MAKE_NEW     machine_hw_spi_make_new
-#define MICROPY_HW_SOFTSPI_MIN_DELAY        (0)
-#define MICROPY_HW_SOFTSPI_MAX_BAUDRATE     (48)
-#endif
 
 // fatfs configuration
 #define MICROPY_VFS                         (1)
@@ -188,17 +177,21 @@
 extern const struct _mp_obj_module_t utime_module;
 extern const struct _mp_obj_module_t uos_module;
 extern const struct _mp_obj_module_t artemis_module;
-//extern const struct _mp_obj_module_t mp_module_machine;
+extern const struct _mp_obj_module_t mp_module_machine;
 
 #define MICROPY_PORT_BUILTIN_MODULES \
     { MP_OBJ_NEW_QSTR(MP_QSTR_utime), (mp_obj_t)&utime_module }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_uos), (mp_obj_t)&uos_module }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_artemis), (mp_obj_t)&artemis_module }, \
-// ****TODO:
-//  { MP_OBJ_NEW_QSTR(MP_QSTR_machine), (mp_obj_t)&mp_module_machine },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_machine), (mp_obj_t)&mp_module_machine },
+
+// Maximum number of GPIO ISRs allowed
+#define AP3_MAX_GPIO_ISR    8
 
 #define MICROPY_PORT_ROOT_POINTERS \
-    const char *readline_hist[8];
+    const char *readline_hist[8]; \
+    mp_obj_t machine_pin_irq_handler[AP3_MAX_GPIO_ISR];
+
 
 #define MP_STATE_PORT MP_STATE_VM
 

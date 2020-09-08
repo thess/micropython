@@ -111,7 +111,7 @@ extern int main(void);
 //
 //*****************************************************************************
 __attribute__ ((section(".stack")))
-static uint32_t g_pui32Stack[0x100];
+static uint32_t g_pui32Stack[256];
 
 //*****************************************************************************
 //
@@ -236,7 +236,7 @@ extern uint32_t _ebss;
 //
 //*****************************************************************************
 #if defined(__GNUC_STDC_INLINE__)
-void
+void __attribute ((naked))
 Reset_Handler(void)
 {
     //
@@ -289,17 +289,10 @@ Reset_Handler(void)
     // Call the application's entry point.
     //
     main();
- 
     //
     // If main returns then execute a break point instruction
     //
     __asm("    bkpt     ");
-}
-
-// Support for Segger Studio libc thread local storage (_tbss_start)?
-unsigned char * __aeabi_read_tp(void)
-{
-  return (unsigned char *)_sbss - 8;
 }
 
 #else
@@ -313,7 +306,7 @@ unsigned char * __aeabi_read_tp(void)
 // by a debugger.
 //
 //*****************************************************************************
-void
+void  __attribute ((naked))
 NMI_Handler(void)
 {
     //
@@ -331,7 +324,7 @@ NMI_Handler(void)
 // for examination by a debugger.
 //
 //*****************************************************************************
-void
+void  __attribute ((naked))
 HardFault_Handler(void)
 {
     //
@@ -349,7 +342,7 @@ HardFault_Handler(void)
 // for examination by a debugger.
 //
 //*****************************************************************************
-void
+void  __attribute ((naked))
 am_default_isr(void)
 {
     //
@@ -359,4 +352,3 @@ am_default_isr(void)
     {
     }
 }
-
