@@ -60,6 +60,21 @@ mp_hal_pin_obj_t machine_pin_get_id(mp_obj_t pin_in);
 #define mp_hal_get_pin_obj(o) machine_pin_get_id(o)
 #define mp_hal_pin_name(p) (p)
 
+static inline void mp_hal_pin_input(mp_hal_pin_obj_t pin) {
+    am_hal_gpio_pincfg_t pin_cfg = g_AM_HAL_GPIO_INPUT;
+    am_hal_gpio_pinconfig(pin, pin_cfg);
+}
+static inline void mp_hal_pin_output(mp_hal_pin_obj_t pin) {
+    am_hal_gpio_pincfg_t pin_cfg = g_AM_HAL_GPIO_OUTPUT_WITH_READ;
+    am_hal_gpio_pinconfig(pin, pin_cfg);
+}
+
+extern const am_hal_gpio_pincfg_t AP3_I2C_GPIO_DEFAULT;
+static inline void mp_hal_pin_open_drain(mp_hal_pin_obj_t pin) {
+    am_hal_gpio_pincfg_t pin_cfg = AP3_I2C_GPIO_DEFAULT;
+    am_hal_gpio_pinconfig(pin, pin_cfg);
+}
+
 #define mp_hal_pin_od_low(p) am_hal_gpio_output_clear(p)
 
 #define mp_hal_pin_od_high(p) am_hal_gpio_output_set(p)

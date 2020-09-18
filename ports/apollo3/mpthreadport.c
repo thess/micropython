@@ -37,7 +37,7 @@
 
 #define MP_THREAD_MIN_STACK_SIZE                        (4 * 1024)
 #define MP_THREAD_DEFAULT_STACK_SIZE                    (MP_THREAD_MIN_STACK_SIZE + 1024)
-#define MP_THREAD_PRIORITY                              (ESP_TASK_PRIO_MIN + 1)
+#define MP_THREAD_PRIORITY                              (MP_TASK_PRIORTY + 1)
 
 // this structure forms a linked list, one node per active thread
 typedef struct _thread_t {

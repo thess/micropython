@@ -186,6 +186,7 @@ VPATH+=:$(SDKPATH)/third_party/FreeRTOSv10.1.1/Source
 VPATH+=:$(SDKPATH)/third_party/FreeRTOSv10.1.1/Source/portable/MemMang
 VPATH+=:$(SDKPATH)/third_party/FreeRTOSv10.1.1/Source/portable/GCC/AMapollo2
 VPATH+=:$(SDKPATH)/devices
+VPATH+=:$(SDKPATH)/mcu/apollo3/hal
 
 LIBS = $(SDKPATH)/mcu/apollo3/hal/gcc/bin/libam_hal.a \
        $(BOARDPATH)/bsp/gcc/bin/libam_bsp.a
@@ -202,6 +203,7 @@ SRC_C = $(STARTUP_FILE) \
 	mphalport.c \
 	modmachine.c \
 	machine_pin.c \
+	machine_i2c.c \
 	$(SRC_MOD)
 
 RTOS_SRC_C = port.c \
@@ -215,8 +217,7 @@ RTOS_SRC_C = port.c \
 SDK_SRC_C = am_devices_led.c \
 	am_util_delay.c \
 	am_util_stdio.c \
-
-#am_util_debug.c \
+#	am_util_debug.c \
 #	am_util_faultisr.c \
 #	am_util_id.c \
 

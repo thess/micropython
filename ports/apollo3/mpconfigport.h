@@ -151,6 +151,8 @@
 //#define MICROPY_PY_OS_DUPTERM               (1)
 #define MICROPY_PY_MACHINE                  (1)
 #define MICROPY_PY_MACHINE_PIN_MAKE_NEW     mp_pin_make_new
+#define MICROPY_PY_MACHINE_I2C              (1)
+#define MICROPY_PY_MACHINE_I2C_MAKE_NEW     machine_hw_i2c_make_new
 
 // fatfs configuration
 #define MICROPY_VFS                         (1)
@@ -186,7 +188,7 @@ extern const struct _mp_obj_module_t mp_module_machine;
     { MP_OBJ_NEW_QSTR(MP_QSTR_machine), (mp_obj_t)&mp_module_machine },
 
 // Maximum number of GPIO ISRs allowed
-#define AP3_MAX_GPIO_ISR    8
+#define AP3_MAX_GPIO_ISR    30
 
 #define MICROPY_PORT_ROOT_POINTERS \
     const char *readline_hist[8]; \
@@ -203,8 +205,8 @@ extern const struct _mp_obj_module_t mp_module_machine;
 #define MP_SSIZE_MAX (0x7fffffff)
 
 #include "FreeRTOS.h"
-#define MICROPY_BEGIN_ATOMIC_SECTION() (portENTER_CRITICAL(), 0)
-#define MICROPY_END_ATOMIC_SECTION(x) (void)x; portEXIT_CRITICAL()
+#define MICROPY_BEGIN_ATOMIC_SECTION() am_hal_interrupt_master_disable()
+#define MICROPY_END_ATOMIC_SECTION(state) am_hal_interrupt_master_set(state)
 
 #include "am_mcu_apollo.h"
 #define MICROPY_EVENT_POLL_HOOK	\

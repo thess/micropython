@@ -82,7 +82,7 @@ extern "C"
 //
 //*****************************************************************************
 // MicroPython runs as a task under FreeRTOS
-#define MP_TASK_PRIORITY        (1)
+#define MP_TASK_PRIORITY        (3)
 #define MP_TASK_STACK_SIZE      (16 * 1024)
 
 //*****************************************************************************
