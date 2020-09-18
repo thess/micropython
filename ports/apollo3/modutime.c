@@ -39,14 +39,24 @@
 
 STATIC mp_obj_t time_localtime(size_t n_args, const mp_obj_t *args) {
     timeutils_struct_time_t tm;
-    mp_int_t seconds;
     if (n_args == 0 || args[0] == mp_const_none) {
-	// ****TODO: RTC interface
-        seconds = xTaskGetTickCount() /  configTICK_RATE_HZ;
+        am_hal_rtc_time_t pTime;
+        if (!am_hal_rtc_time_get(&pTime)) {
+            tm.tm_year = pTime.ui32Year;
+            tm.tm_mon = pTime.ui32Month;
+            tm.tm_mday = pTime.ui32DayOfMonth;
+            tm.tm_hour = pTime.ui32Hour;
+            tm.tm_min = pTime.ui32Minute;
+            tm.tm_sec = pTime.ui32Second;
+            tm.tm_wday = pTime.ui32Weekday;
+            tm.tm_yday = timeutils_year_day(pTime.ui32Year, pTime.ui32Month, pTime.ui32DayOfMonth);
+        } else {
+            timeutils_seconds_since_2000_to_struct_time(xTaskGetTickCount() /  configTICK_RATE_HZ, &tm);
+        }
     } else {
-        seconds = mp_obj_get_int(args[0]);
+        timeutils_seconds_since_2000_to_struct_time(mp_obj_get_int(args[0]), &tm);
     }
-    timeutils_seconds_since_2000_to_struct_time(seconds, &tm);
+
     mp_obj_t tuple[8] = {
         tuple[0] = mp_obj_new_int(tm.tm_year),
         tuple[1] = mp_obj_new_int(tm.tm_mon),
@@ -78,8 +88,8 @@ STATIC mp_obj_t time_mktime(mp_obj_t tuple) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(time_mktime_obj, time_mktime);
 
 STATIC mp_obj_t time_time(void) {
-    // ****TODO: RTC interface
-    return mp_obj_new_int(xTaskGetTickCount() / portTICK_PERIOD_MS);
+    // Return uptime in seconds
+    return mp_obj_new_int(xTaskGetTickCount() / configTICK_RATE_HZ);
 }
 MP_DEFINE_CONST_FUN_OBJ_0(time_time_obj, time_time);
 

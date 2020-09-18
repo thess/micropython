@@ -74,6 +74,31 @@ enable_print_interface(void)
 
 //*****************************************************************************
 //
+// Enable RTC and set clock to "genesis"
+//
+//*****************************************************************************
+void ap3_enable_rtc(void)
+{
+    am_hal_rtc_time_t hal_time;
+    //
+    // Enable the XT for the RTC.
+    //
+    am_hal_clkgen_control(AM_HAL_CLKGEN_CONTROL_XTAL_START, 0);
+    am_hal_rtc_osc_select(AM_HAL_RTC_OSC_XT);
+    am_hal_rtc_osc_enable();
+
+    // Using 2-Aug-2020 09:00 (Sun)
+    memset(&hal_time, 0, sizeof(hal_time));
+    hal_time.ui32Hour = 9;
+    hal_time.ui32DayOfMonth = 2;
+    hal_time.ui32Month = 8;
+    hal_time.ui32Year = 20;
+
+    am_hal_rtc_time_set(&hal_time);
+}
+
+//*****************************************************************************
+//
 // Main Function
 //
 //*****************************************************************************
@@ -138,6 +163,9 @@ main(void)
     am_hal_stimer_config(AM_HAL_STIMER_CFG_CLEAR | AM_HAL_STIMER_CFG_FREEZE);
     am_hal_stimer_config(AM_HAL_STIMER_HFRC_3MHZ);
 #endif
+
+    // Enable RTC
+    ap3_enable_rtc();
 
     // Enable interrupts here
     am_hal_interrupt_master_enable();
