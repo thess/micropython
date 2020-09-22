@@ -111,6 +111,7 @@
 #define MICROPY_PY_COLLECTIONS_ORDEREDDICT  (1)
 #define MICROPY_PY_MATH                     (1)
 #define MICROPY_PY_MATH_ISCLOSE             (1)
+#define MICROPY_PY_MATH_SPECIAL_FUNCTIONS   (1)
 #define MICROPY_PY_CMATH                    (0)
 #define MICROPY_PY_GC                       (1)
 #define MICROPY_PY_IO                       (1)
@@ -147,12 +148,9 @@
 #define MICROPY_PY_UBINASCII_CRC32          (1)
 #define MICROPY_PY_URANDOM                  (1)
 #define MICROPY_PY_URANDOM_EXTRA_FUNCS      (1)
-// ****TODO:
-//#define MICROPY_PY_OS_DUPTERM               (1)
+
 #define MICROPY_PY_MACHINE                  (1)
 #define MICROPY_PY_MACHINE_PIN_MAKE_NEW     mp_pin_make_new
-#define MICROPY_PY_MACHINE_I2C              (1)
-#define MICROPY_PY_MACHINE_I2C_MAKE_NEW     machine_hw_i2c_make_new
 
 // fatfs configuration
 #define MICROPY_VFS                         (1)

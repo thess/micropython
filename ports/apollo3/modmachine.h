@@ -17,7 +17,7 @@
 
 extern const mp_obj_type_t machine_timer_type;
 extern const mp_obj_type_t machine_pin_type;
-extern const mp_obj_type_t machine_i2c_type;
+extern const mp_obj_type_t machine_hw_i2c_type;
 extern const mp_obj_type_t machine_rtc_type;
 
 void machine_pins_init(void);

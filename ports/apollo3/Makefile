@@ -217,6 +217,7 @@ RTOS_SRC_C = port.c \
 SDK_SRC_C = am_devices_led.c \
 	am_util_delay.c \
 	am_util_stdio.c \
+
 #	am_util_debug.c \
 #	am_util_faultisr.c \
 #	am_util_id.c \
