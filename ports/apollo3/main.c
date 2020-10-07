@@ -87,6 +87,7 @@ void ap3_enable_rtc(void)
     am_hal_rtc_osc_select(AM_HAL_RTC_OSC_XT);
     am_hal_rtc_osc_enable();
 
+#if AP3_RTC_BATTERY == 0
     // Using 2-Aug-2020 09:00 (Sun)
     memset(&hal_time, 0, sizeof(hal_time));
     hal_time.ui32Hour = 9;
@@ -95,6 +96,7 @@ void ap3_enable_rtc(void)
     hal_time.ui32Year = 20;
 
     am_hal_rtc_time_set(&hal_time);
+#endif
 }
 
 //*****************************************************************************

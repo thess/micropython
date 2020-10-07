@@ -308,7 +308,7 @@ STATIC mp_obj_t machine_i2c_scan(mp_obj_t self_in) {
     // 7-bit addresses 0b0000xxx and 0b1111xxx are reserved
     for (int addr = 0x08; addr < 0x78; ++addr) {
         int ret = machine_hw_i2c_readfrom(self, addr, bfr, 1, true);
-        if (ret == 0) {
+        if (ret >= 0) {
             mp_obj_list_append(list, MP_OBJ_NEW_SMALL_INT(addr));
         }
     }
