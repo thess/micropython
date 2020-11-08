@@ -58,7 +58,7 @@ DEFINES+= -DAM_CUSTOM_BDADDR
 DEFINES+= -DAM_PACKAGE_BGA
 # DEFINES+= -DAM_DEBUG_PRINTF
 DEFINES+= -DAM_BSP_DISABLE_BUFFERED_UART
-DEFINES+= -DAM_PART_$(PART)
+DEFINES+= -DAM_PART_APOLLO3
 
 INC+= -I$(SDKPATH)/utils
 INC+= -I$(SDKPATH)/mcu/apollo3
@@ -126,6 +126,10 @@ LIB_SRC_C = $(addprefix lib/, \
 	utils/sys_stdio_mphal.c \
 	)
 
+DRIVERS_SRC_C = $(addprefix drivers/,\
+        bus/softspi.c \
+	)
+
 SRC_S = lib/utils/gchelper_m3.s
 
 SHELL:=/bin/bash
@@ -133,7 +137,6 @@ SHELL:=/bin/bash
 #### Setup ####
 
 CROSS_COMPILE ?= arm-none-eabi-
-PART = APOLLO3
 CPU = cortex-m4
 FPU = fpv4-sp-d16
 # Default to FPU hardware calling convention.  However, some customers and/or
@@ -182,6 +185,7 @@ OBJ += $(addprefix $(BUILD)/, $(RTOS_SRC_C:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(SDK_SRC_C:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_S:.s=.o))
 OBJ += $(addprefix $(BUILD)/, $(LIB_SRC_C:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(DRIVERS_SRC_C:.c=.o))
 
 SRC_QSTR += $(SRC_C) $(RTOS_SRC_C) $(SDK_SRC_C) $(LIB_SRC_C)
 

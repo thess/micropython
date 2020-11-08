@@ -155,7 +155,9 @@ main(void)
 #ifdef AM_DEBUG_PRINTF
     enable_print_interface();
 #endif
-
+#ifdef AM_BSP_NUM_LEDS
+    am_devices_led_on(am_bsp_psLEDs, AM_BSP_LED0);
+#endif
     am_util_debug_printf("Apollo3 Micropython startup\n");
 
 #if 0

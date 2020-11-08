@@ -59,7 +59,9 @@ void mp_task(void *pvParameter) {
     // ****TODO: Don't use all of heap memory
     size_t mp_task_heap_size = xPortGetFreeHeapSize() - (16 * 1024);
     void *mp_task_heap = pvPortMalloc(mp_task_heap_size - portBYTE_ALIGNMENT);
-
+#ifdef AM_BSP_NUM_LEDS
+    am_devices_led_off(am_bsp_psLEDs, AM_BSP_LED0);
+#endif
 soft_reset:
     // initialise the stack pointer for the main thread
     mp_stack_set_top((void *)sp);

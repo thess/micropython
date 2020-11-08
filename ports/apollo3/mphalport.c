@@ -151,33 +151,6 @@ void mp_hal_delay_ms(uint32_t ms) {
     }
 }
 
-void mp_hal_delay_us(uint32_t us) {
-    // these approx constants are for a 48MHz clock
-    const uint32_t this_overhead = 1;
-    const uint32_t pend_overhead = 50;
-
-    // return if requested delay is less than calling overhead
-    if (us < this_overhead) {
-        return;
-    }
-    us -= this_overhead;
-
-    uint64_t t0 = mp_hal_ticks_us();
-    for (;;) {
-        uint64_t dt = mp_hal_ticks_us() - t0;
-        if (dt >= us) {
-            return;
-        }
-        if (dt + pend_overhead < us) {
-            // we have enough time to service pending events
-            // (don't use MICROPY_EVENT_POLL_HOOK because it also yields)
-            mp_handle_pending(true);
-            __WFI();
-        }
-    }
-}
-
-
 // Wake up the main task if it is sleeping
 void mp_hal_wake_main_task_from_isr(void) {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -202,10 +175,3 @@ void gc_collect(void) {
     gc_collect_end();
 }
 
-uint64_t mp_hal_time_ns(void) {
-    uint64_t ns = 0;
-#if MICROPY_HW_ENABLE_RTC
-    // ****TODO: Get time from RTC
-#endif
-    return ns;
-}

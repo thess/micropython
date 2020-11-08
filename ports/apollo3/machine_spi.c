@@ -41,19 +41,19 @@ typedef struct _machine_hw_spi_obj_t {
     void *iom;          // IOM handle
     SemaphoreHandle_t semaphore;
     uint32_t freq;      // selected speed
+    uint8_t port;
+    uint8_t has_lock;
     uint8_t mode;       // [Polarity]:[Phase]
     uint8_t bits;
     uint8_t firstbit;
-    uint8_t sck;
-    uint8_t mosi;
-    uint8_t miso;
-    uint8_t port;
-    uint8_t has_lock;
+    mp_hal_pin_obj_t sck;
+    mp_hal_pin_obj_t mosi;
+    mp_hal_pin_obj_t miso;
 } machine_hw_spi_obj_t;
 
 STATIC machine_hw_spi_obj_t machine_hw_spi_obj[AP3_SPI_INTERFACES];
 
-const am_hal_gpio_pincfg_t AP3_MISO_GPIO_DEFAULT =
+const am_hal_gpio_pincfg_t AP3_SPI_GPIO_DEFAULT =
 {
     .uFuncSel       = 5,
     .ePullup        = AM_HAL_GPIO_PIN_PULLUP_1_5K,
@@ -62,14 +62,18 @@ const am_hal_gpio_pincfg_t AP3_MISO_GPIO_DEFAULT =
 };
 
 STATIC void machine_hw_spi_deinit_internal(machine_hw_spi_obj_t *self) {
+    // reset IOM
+    am_hal_iom_disable(self->iom);
+    am_hal_iom_power_ctrl(self->iom, AM_HAL_SYSCTRL_DEEPSLEEP, false);
+    am_hal_iom_uninitialize(self->iom);
+    self->iom = NULL;
 
-    // ***TODO: Reset IOM and pins
+    int8_t pads[3] = {self->miso, self->mosi, self->sck};
 
-    int8_t pins[3] = {self->miso, self->mosi, self->sck};
-
-    for (int i = 0; i < 3; i++) {
-        if (pins[i] != -1) {
+    for (int8_t p = 0; p < 3; p++) {
+        if (pads[p] != -1) {
             // Pin reset
+            am_hal_gpio_pinconfig(pads[p], g_AM_HAL_GPIO_DISABLE);
         }
     }
 }
@@ -80,11 +84,18 @@ STATIC void machine_hw_spi_init_internal(
     int8_t mode,
     int8_t bits,
     int8_t firstbit,
-    int8_t sck,
-    int8_t mosi,
-    int8_t miso) {
+    mp_hal_pin_obj_t sck,
+    mp_hal_pin_obj_t mosi,
+    mp_hal_pin_obj_t miso) {
 
+    // Clear previous config if exists
+    if (self->iom) {
+        machine_hw_spi_deinit_internal(self);
+    }
+    // Override defaults if requested
     if (freq != -1 && freq != self->freq) {
+        if (freq > AM_HAL_IOM_MAX_FREQ)
+            freq = AM_HAL_IOM_MAX_FREQ;
         self->freq = freq;
     }
 
@@ -111,18 +122,87 @@ STATIC void machine_hw_spi_init_internal(
     if (miso != -2 && miso != self->miso) {
         self->miso = miso;
     }
+    
+    am_hal_iom_config_t iom_cfg = {0};
+    iom_cfg.eInterfaceMode = AM_HAL_IOM_SPI_MODE;
+    iom_cfg.eSpiMode = self->mode;
+    iom_cfg.ui32ClockFreq = self->freq;
+    
+    am_hal_iom_initialize(self->port, &self->iom);
+    if (self->iom == NULL) {
+        mp_raise_ValueError(MP_ERROR_TEXT("Invalid SPI port"));
+    }
 
-    // Initialize the SPI bus
+    am_hal_iom_power_ctrl(self->iom, AM_HAL_SYSCTRL_WAKE, false);
+    
+    if (am_hal_iom_configure(self->iom, &iom_cfg)  != AM_HAL_STATUS_SUCCESS) {
+        mp_raise_ValueError(MP_ERROR_TEXT("SPI config error"));
+    }
+    am_hal_iom_enable(self->iom);
 
+    // Set up pins
+    am_hal_gpio_pincfg_t pincfg = AP3_SPI_GPIO_DEFAULT;
+    pincfg.uIOMnum = self->port;
+    // clock
+    if (am_hal_gpio_pinconfig(self->sck, pincfg) != AM_HAL_STATUS_SUCCESS) {
+        mp_raise_ValueError(MP_ERROR_TEXT("SCK config error"));
+    }
+    // output
+    if (am_hal_gpio_pinconfig(self->miso, pincfg) != AM_HAL_STATUS_SUCCESS) {
+        mp_raise_ValueError(MP_ERROR_TEXT("MISO config error"));
+    }
+    // input
+    if (am_hal_gpio_pinconfig(self->mosi, pincfg) != AM_HAL_STATUS_SUCCESS) {
+        mp_raise_ValueError(MP_ERROR_TEXT("MOSI config error"));
+    }
 }
 
 STATIC void machine_hw_spi_deinit(mp_obj_base_t *self_in) {
     machine_hw_spi_obj_t *self = (machine_hw_spi_obj_t *)self_in;
+    machine_hw_spi_deinit_internal(self);
 }
 
 STATIC void machine_hw_spi_transfer(mp_obj_base_t *self_in, size_t len, const uint8_t *src, uint8_t *dest) {
     machine_hw_spi_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
+    am_hal_iom_transfer_t iomTransfer = {0};
+
+    iomTransfer.ui32NumBytes = len;
+    iomTransfer.pui32TxBuffer = (uint32_t *)dest;
+    iomTransfer.pui32RxBuffer = (uint32_t *)src;
+    iomTransfer.ui8Priority = 1;
+
+    // Determine direction
+    if ((dest != NULL) && (src != NULL))
+    {
+        iomTransfer.eDirection = AM_HAL_IOM_FULLDUPLEX;
+    }
+    else if (dest != NULL)
+    {
+        iomTransfer.eDirection = AM_HAL_IOM_TX;
+    }
+    else if (src != NULL)
+    {
+        iomTransfer.eDirection = AM_HAL_IOM_RX;
+    }
+
+    uint32_t retval = 0;
+    if (iomTransfer.eDirection == AM_HAL_IOM_FULLDUPLEX)
+    {
+        retval = am_hal_iom_spi_blocking_fullduplex(self->iom, &iomTransfer);
+    }
+    else
+    {
+        retval = am_hal_iom_blocking_transfer(self->iom, &iomTransfer);
+    }
+
+    // Check errors
+    if (retval == AM_HAL_STATUS_TIMEOUT) {
+        mp_raise_OSError(MP_ETIMEDOUT);
+    } else if (retval != AM_HAL_STATUS_SUCCESS) {
+        mp_raise_OSError(MP_EIO);
+    }
+    
     return;
 }
 
@@ -186,6 +266,8 @@ STATIC void machine_hw_spi_init(mp_obj_base_t *self_in, size_t n_args, const mp_
 }
 
 mp_obj_t machine_hw_spi_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
+    MP_MACHINE_SPI_CHECK_FOR_LEGACY_SOFTSPI_CONSTRUCTION(n_args, n_kw, all_args);
+
     enum { ARG_id, ARG_freq, ARG_polarity, ARG_phase, ARG_bits, ARG_firstbit, ARG_sck, ARG_mosi, ARG_miso };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_id,       MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = -1} },
@@ -212,9 +294,22 @@ mp_obj_t machine_hw_spi_make_new(const mp_obj_type_t *type, size_t n_args, size_
     if (self->base.type == NULL) {
         // Created for the first time, set default pins
         self->base.type = &machine_hw_spi_type;
+        self->port = AP3_SPI_IOM0;
+        self->sck = SPI_0_DEFAULT_SCK;
+        self->mosi = SPI_0_DEFAULT_MOSI;
+        self->miso = SPI_0_DEFAULT_MISO;
     }
     
-    // Pin config
+    // Pin config (if given)
+    if (args[ARG_sck].u_obj != MP_OBJ_NULL) {
+        self->sck = mp_hal_get_pin_obj(args[ARG_sck].u_obj);
+    }
+    if (args[ARG_mosi].u_obj != MP_OBJ_NULL) {
+        self->mosi = mp_hal_get_pin_obj(args[ARG_mosi].u_obj);
+    }
+    if (args[ARG_miso].u_obj != MP_OBJ_NULL) {
+        self->miso = mp_hal_get_pin_obj(args[ARG_miso].u_obj);
+    }
     
     // Create binary semaphore for SPI bus serializaiton
     if (!self->semaphore) {

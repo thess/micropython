@@ -36,12 +36,6 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 
-// I2C pads
-#define I2C_0_DEFAULT_SCL (39)
-#define I2C_0_DEFAULT_SDA (40)
-#define I2C_1_DEFAULT_SCL (42)
-#define I2C_1_DEFAULT_SDA (43)
-
 #define I2C_DEFAULT_TIMEOUT_US (10000) // 10ms
 
 typedef struct _machine_hw_i2c_obj_t {
@@ -49,11 +43,12 @@ typedef struct _machine_hw_i2c_obj_t {
     void *iom;          // IOM handle
     uint32_t freq;      // selected speed
     SemaphoreHandle_t semaphore;
+    uint8_t has_lock;
     // IOM and pins
-    uint8_t port : 8;
-    uint8_t scl : 8;
-    uint8_t sda : 8;
-    uint8_t has_lock : 8;
+    uint8_t port;
+    mp_hal_pin_obj_t scl;
+    mp_hal_pin_obj_t sda;
+
 } machine_hw_i2c_obj_t;
 
 STATIC machine_hw_i2c_obj_t machine_hw_i2c_obj[AP3_I2C_INTERFACES];
@@ -160,6 +155,7 @@ STATIC void machine_hw_i2c_print(const mp_print_t *print, mp_obj_t self_in, mp_p
 }
 
 mp_obj_t machine_hw_i2c_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
+    MP_MACHINE_I2C_CHECK_FOR_LEGACY_SOFTI2C_CONSTRUCTION(n_args, n_kw, all_args);
     // Parse args
     enum { ARG_id, ARG_scl, ARG_sda, ARG_freq, ARG_timeout };
     static const mp_arg_t allowed_args[] = {
@@ -183,14 +179,19 @@ mp_obj_t machine_hw_i2c_make_new(const mp_obj_type_t *type, size_t n_args, size_
     if (self->base.type == NULL) {
         // Created for the first time, set default pins
         self->base.type = &machine_hw_i2c_type;
-        if (i2c_id == 0) {
-            self->port = AP3_I2C0_IOM;
-            self->scl = I2C_0_DEFAULT_SCL;
-            self->sda = I2C_0_DEFAULT_SDA;
-        } else {
-            self->port = AP3_I2C1_IOM;
-            self->scl = I2C_1_DEFAULT_SCL;
-            self->sda = I2C_1_DEFAULT_SDA;
+        switch (i2c_id) {
+            case 0:
+                self->port = AP3_I2C0_IOM;
+                self->scl = I2C_0_DEFAULT_SCL;
+                self->sda = I2C_0_DEFAULT_SDA;
+                break;
+#if (AP3_I2C_INTERFACES > 1)
+            case 1:
+                self->port = AP3_I2C1_IOM;
+                self->scl = I2C_1_DEFAULT_SCL;
+                self->sda = I2C_1_DEFAULT_SDA;
+                break;
+#endif
         }
     }
 
@@ -246,92 +247,43 @@ STATIC mp_obj_t i2c_obj_unlock(mp_obj_t self_in) {
 }
 MP_DEFINE_CONST_FUN_OBJ_1(i2c_unlock_obj, i2c_obj_unlock);
 
-STATIC int machine_hw_i2c_readfrom(mp_obj_base_t *self, uint16_t addr, uint8_t *dest, size_t len, bool stop) {
-    mp_machine_i2c_buf_t buf = {.len = len, .buf = dest};
-    unsigned int flags = MP_MACHINE_I2C_FLAG_READ | (stop ? MP_MACHINE_I2C_FLAG_STOP : 0);
-    return machine_hw_i2c_transfer(self, addr, 1, &buf, flags);
-}
-
-STATIC int machine_hw_i2c_writeto(mp_obj_base_t *self, uint16_t addr, const uint8_t *src, size_t len, bool stop) {
-    mp_machine_i2c_buf_t buf = {.len = len, .buf = (uint8_t *)src};
-    unsigned int flags = stop ? MP_MACHINE_I2C_FLAG_STOP : 0;
-    return machine_hw_i2c_transfer(self, addr, 1, &buf, flags);
-}
-
-STATIC mp_obj_t machine_i2c_readfrom(size_t n_args, const mp_obj_t *args) {
-    mp_obj_base_t *self = (mp_obj_base_t *)MP_OBJ_TO_PTR(args[0]);
-    mp_int_t addr = mp_obj_get_int(args[1]);
-    vstr_t vstr;
-    vstr_init_len(&vstr, mp_obj_get_int(args[2]));
-    bool stop = (n_args == 3) ? true : mp_obj_is_true(args[3]);
-    int ret = machine_hw_i2c_readfrom(self, addr, (uint8_t *)vstr.buf, vstr.len, stop);
-    if (ret < 0) {
-        mp_raise_OSError(-ret);
-    }
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
-}
-MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_i2c_readfrom_obj, 3, 4, machine_i2c_readfrom);
-
-STATIC mp_obj_t machine_i2c_readfrom_into(size_t n_args, const mp_obj_t *args) {
-    mp_obj_base_t *self = (mp_obj_base_t *)MP_OBJ_TO_PTR(args[0]);
-    mp_int_t addr = mp_obj_get_int(args[1]);
-    mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_WRITE);
-    bool stop = (n_args == 3) ? true : mp_obj_is_true(args[3]);
-    int ret = machine_hw_i2c_readfrom(self, addr, bufinfo.buf, bufinfo.len, stop);
-    if (ret < 0) {
-        mp_raise_OSError(-ret);
-    }
-    return mp_const_none;
-}
-MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_i2c_readfrom_into_obj, 3, 4, machine_i2c_readfrom_into);
-
-STATIC mp_obj_t machine_i2c_writeto(size_t n_args, const mp_obj_t *args) {
-    mp_obj_base_t *self = (mp_obj_base_t *)MP_OBJ_TO_PTR(args[0]);
-    mp_int_t addr = mp_obj_get_int(args[1]);
-    mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_READ);
-    bool stop = (n_args == 3) ? true : mp_obj_is_true(args[3]);
-    int ret = machine_hw_i2c_writeto(self, addr, bufinfo.buf, bufinfo.len, stop);
-    if (ret < 0) {
-        mp_raise_OSError(-ret);
-    }
-    // return number of acks received
-    return MP_OBJ_NEW_SMALL_INT(ret);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_i2c_writeto_obj, 3, 4, machine_i2c_writeto);
-
-STATIC mp_obj_t machine_i2c_scan(mp_obj_t self_in) {
+STATIC mp_obj_t machine_hw_i2c_scan(mp_obj_t self_in) {
     mp_obj_base_t *self = MP_OBJ_TO_PTR(self_in);
     mp_obj_t list = mp_obj_new_list(0, NULL);
-    uint8_t bfr[4];
+    uint8_t bfr[4];     // Need word for IOM alignment
+    mp_machine_i2c_buf_t buf = {.len = 1, .buf = bfr};
     // 7-bit addresses 0b0000xxx and 0b1111xxx are reserved
     for (int addr = 0x08; addr < 0x78; ++addr) {
-        int ret = machine_hw_i2c_readfrom(self, addr, bfr, 1, true);
+        int ret = machine_hw_i2c_transfer(self, addr, 1, &buf, MP_MACHINE_I2C_FLAG_READ | MP_MACHINE_I2C_FLAG_STOP);
         if (ret >= 0) {
             mp_obj_list_append(list, MP_OBJ_NEW_SMALL_INT(addr));
         }
     }
     return list;
 }
-MP_DEFINE_CONST_FUN_OBJ_1(machine_i2c_scan_obj, machine_i2c_scan);
+MP_DEFINE_CONST_FUN_OBJ_1(machine_hw_i2c_scan_obj, machine_hw_i2c_scan);
 
 STATIC const mp_machine_i2c_p_t machine_hw_i2c_p = {
     .transfer = machine_hw_i2c_transfer,
 };
 
-STATIC const mp_rom_map_elem_t machine_i2c_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR_scan), MP_ROM_PTR(&machine_i2c_scan_obj) },
+extern mp_obj_t machine_i2c_readfrom_obj;
+extern mp_obj_t machine_i2c_readfrom_into_obj;
+extern mp_obj_t machine_i2c_writeto_obj;
+
+STATIC const mp_rom_map_elem_t machine_hw_i2c_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_scan), MP_ROM_PTR(&machine_hw_i2c_scan_obj) },
 
     { MP_ROM_QSTR(MP_QSTR_try_lock), MP_ROM_PTR(&i2c_try_lock_obj) },
     { MP_ROM_QSTR(MP_QSTR_unlock), MP_ROM_PTR(&i2c_unlock_obj) },
 
+    // standard bus operations
     { MP_ROM_QSTR(MP_QSTR_readfrom), MP_ROM_PTR(&machine_i2c_readfrom_obj) },
     { MP_ROM_QSTR(MP_QSTR_readfrom_into), MP_ROM_PTR(&machine_i2c_readfrom_into_obj) },
     { MP_ROM_QSTR(MP_QSTR_writeto), MP_ROM_PTR(&machine_i2c_writeto_obj) },
 };
 
-STATIC MP_DEFINE_CONST_DICT(machine_i2c_locals_dict, machine_i2c_locals_dict_table);
+STATIC MP_DEFINE_CONST_DICT(machine_hw_i2c_locals_dict, machine_hw_i2c_locals_dict_table);
 
 const mp_obj_type_t machine_hw_i2c_type = {
     { &mp_type_type },
@@ -339,5 +291,5 @@ const mp_obj_type_t machine_hw_i2c_type = {
     .print = machine_hw_i2c_print,
     .make_new = machine_hw_i2c_make_new,
     .protocol = &machine_hw_i2c_p,
-    .locals_dict = (mp_obj_dict_t *)&machine_i2c_locals_dict,
+    .locals_dict = (mp_obj_dict_t *)&machine_hw_i2c_locals_dict,
 };

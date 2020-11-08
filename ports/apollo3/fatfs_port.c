@@ -31,8 +31,9 @@
 MP_WEAK DWORD get_fattime(void) {
   #if MICROPY_HW_ENABLE_RTC
     am_hal_rtc_time_t xNow;
-    am_hal_rtc_time_get(&dateNow);
-    return ((2000 + xNow.ui32Year - 1980) << 25) | ((xNow.ui32Month) << 21) | ((xNow.uiDayOfMonth) << 16) | ((time.Hour) << 11) | ((xNow.ui32Minute) << 5) | (xNow.ui32Second / 2);
+    am_hal_rtc_time_get(&xNow);
+    return ((2000 + xNow.ui32Year - 1980) << 25) | ((xNow.ui32Month) << 21) | ((xNow.ui32DayOfMonth) << 16) | 
+            ((xNow.ui32Hour) << 11) | ((xNow.ui32Minute) << 5) | (xNow.ui32Second / 2);
   #else
     // Jan 1st, 2018 at midnight. Not sure what timezone.
     return ((2018 - 1980) << 25) | ((1) << 21) | ((1) << 16) | ((0) << 11) | ((0) << 5) | (0 / 2);

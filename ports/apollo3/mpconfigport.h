@@ -150,12 +150,12 @@
 #define MICROPY_PY_URANDOM_EXTRA_FUNCS      (1)
 
 #define MICROPY_PY_MACHINE                  (1)
+#define MICROPY_HW_ENABLE_RTC               (1)
 #define MICROPY_PY_MACHINE_PIN_MAKE_NEW     mp_pin_make_new
+#define MICROPY_PY_MACHINE_I2C              (1)
 #define MICROPY_PY_MACHINE_SPI              (1)
 #define MICROPY_PY_MACHINE_SPI_MSB          (0)
 #define MICROPY_PY_MACHINE_SPI_LSB          (1)
-#define MICROPY_PY_MACHINE_SPI_MAKE_NEW     machine_hw_spi_make_new
-#define MICROPY_HW_ENABLE_SDCARD            (1)
 
 // fatfs configuration
 #define MICROPY_VFS                         (1)

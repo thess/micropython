@@ -43,11 +43,19 @@ typedef struct _machine_pin_obj_t {
 typedef struct _machine_pin_irq_obj_t {
     mp_obj_base_t base;
     uint8_t id;
-    uint8_t pad;
     uint8_t mode;
 } machine_pin_irq_obj_t;
 
-STATIC const uint8_t ap3_pin2pad[] = {
+const am_hal_gpio_pincfg_t AP3_GPIO_OPENDRAIN_DEFAULT =
+{
+    .uFuncSel       = 3,
+    .ePullup        = AM_HAL_GPIO_PIN_PULLUP_1_5K,
+    .eDriveStrength = AM_HAL_GPIO_PIN_DRIVESTRENGTH_12MA,
+    .eGPInput       = AM_HAL_GPIO_PIN_INPUT_ENABLE,         // Not automagic (fnSel:=3)
+    .eGPOutcfg      = AM_HAL_GPIO_PIN_OUTCFG_OPENDRAIN
+};
+
+const uint8_t ap3_pin2pad[] = {
     //~ := PWM, A := ADC
     // <Apollo3 Pad>  Board Pin - functions
     25,               //0     - ~RX1/SDA2/MISO2
@@ -75,10 +83,6 @@ STATIC const uint8_t ap3_pin2pad[] = {
     29,               //22/A3 - ~A/PDMDATA
     12,               //23/A4 - ~A/PDMCLK/TX1
     31,               //24/A5 - ~A/SCCCLK
-    48,               //25    - Not exposed, TX0
-    49,               //26    - Not exposed, RX0
-    36,               //27    - Not exposed, PDMDATA of Mic
-    37                //28    - Not exposed, PDMCLK of Mic
 };
 
 STATIC const machine_pin_obj_t machine_pin_obj[] = {
@@ -107,10 +111,6 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
     {{&machine_pin_type}, 22},   //29/A3  - ~A/PDMDATA
     {{&machine_pin_type}, 23},   //12/A4  - ~A/PDMCLK/TX1
     {{&machine_pin_type}, 24},   //31/A5  - ~A/SCCCLK
-    {{&machine_pin_type}, 25},   //48     - Not exposed, TX0
-    {{&machine_pin_type}, 26},   //49     - Not exposed, RX0
-    {{&machine_pin_type}, 27},   //36     - Not exposed, PDMDATA of Mic
-    {{&machine_pin_type}, 29},   //37     - Not exposed, PDMCLK of Mic
 };
 
 // Table of active ISR objects
@@ -125,9 +125,13 @@ void machine_pins_init(void) {
 
 void machine_pins_deinit(void) {
     NVIC_DisableIRQ(GPIO_IRQn);
-    for (int i = 0; i < MP_ARRAY_SIZE(machine_pin_obj); ++i) {
+    for (uint8_t pin = 0; pin < MP_ARRAY_SIZE(machine_pin_obj); pin++) {
+        // Reset pin (skip uart pins)
+        uint8_t pad = ap3_pin2pad[pin];
+        am_hal_gpio_pinconfig(pad, g_AM_HAL_GPIO_DISABLE);
+        // ... and interrupt masks
         AM_HAL_GPIO_MASKCREATE(IntMask);
-        AM_HAL_GPIO_MASKBIT(pIntMask, machine_pin_obj[i].id);
+        AM_HAL_GPIO_MASKBIT(pIntMask, pad);
         am_hal_gpio_interrupt_disable(pIntMask);
         am_hal_gpio_interrupt_clear(pIntMask);
     }
@@ -138,7 +142,7 @@ uint8_t machine_pin_get_id(mp_obj_t pin_in) {
         mp_raise_ValueError(MP_ERROR_TEXT("expecting a pin"));
     }
     machine_pin_obj_t *self = pin_in;
-    return self->id;
+    return ap3_pin2pad[self->id];
 }
 
 STATIC void machine_pin_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
@@ -383,7 +387,6 @@ STATIC mp_obj_t machine_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_
     irq_obj = &machine_pin_irq_object[self->id];
     irq_obj->base.type = &machine_pin_irq_type;
     irq_obj->id = self->id;
-    irq_obj->pad = ap3_pin2pad[self->id];
     irq_obj->mode = trigger;
     
 

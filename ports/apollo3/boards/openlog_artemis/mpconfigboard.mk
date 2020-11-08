@@ -61,3 +61,4 @@ endif
 AMBIQ_BIN2BOARD=$(PYTHON3) $(TOOLPATH)/ambiq/ambiq_bin2board.py
 ARTEMIS_SVL=$(PYTHON3) $(TOOLPATH)/artemis/artemis_svl.py
 
+FROZEN_MANIFEST ?= $(BOARD_DIR)/manifest.py
