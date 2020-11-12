@@ -222,13 +222,13 @@ $(BUILD)/mpy_apollo3_%.bin: $(BUILD)/mpy_apollo3_%.axf
 
 bootload_asb: directories $(BUILD)/mpy_apollo3_asb.bin
 	@echo "Uploading using the Ambiq Secure Bootloader"
-	$(Q)$(AMBIQ_BIN2BOARD) --bin $(BUILD)/mpy_apollo3_asb.bin --load-address-blob 0x20000 \
+	$(Q)$(ASB_UPLOADER) --bin $(BUILD)/mpy_apollo3_asb.bin --load-address-blob 0x20000 \
               --magic-num 0xCB -o $(BUILD)/mpy_apollo3 --version 0x0 --load-address-wired 0xC000 \
               -i 6 --options 0x1 -b $(ASB_UPLOAD_BAUD) -port $(COM_PORT) -r 2 -v 
 
 bootload_svl: directories $(BUILD)/mpy_apollo3_svl.bin
 	@echo "Uploading using the SparkFun Variable Loader"
-	$(Q)$(ARTEMIS_SVL) $(COM_PORT) -f $(BUILD)/mpy_apollo3_svl.bin -b $(SVL_UPLOAD_BAUD) -v
+	$(Q)$(SVL_UPLOADER) $(COM_PORT) -f $(BUILD)/mpy_apollo3_svl.bin -b $(SVL_UPLOAD_BAUD) -v
 
 bootload: bootload_asb
 

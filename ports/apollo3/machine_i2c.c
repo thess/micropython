@@ -55,7 +55,7 @@ STATIC machine_hw_i2c_obj_t machine_hw_i2c_obj[AP3_I2C_INTERFACES];
 
 const am_hal_gpio_pincfg_t AP3_I2C_GPIO_DEFAULT =
 {
-    .uFuncSel       = 4,
+    .uFuncSel       = AP3_I2C_GPIO_FUNCSEL,
     .ePullup        = AM_HAL_GPIO_PIN_PULLUP_1_5K,
     .eDriveStrength = AM_HAL_GPIO_PIN_DRIVESTRENGTH_12MA,
     .eGPOutcfg      = AM_HAL_GPIO_PIN_OUTCFG_OPENDRAIN
@@ -181,13 +181,13 @@ mp_obj_t machine_hw_i2c_make_new(const mp_obj_type_t *type, size_t n_args, size_
         self->base.type = &machine_hw_i2c_type;
         switch (i2c_id) {
             case 0:
-                self->port = AP3_I2C0_IOM;
+                self->port = AP3_I2C0_IOMASTER;
                 self->scl = I2C_0_DEFAULT_SCL;
                 self->sda = I2C_0_DEFAULT_SDA;
                 break;
 #if (AP3_I2C_INTERFACES > 1)
             case 1:
-                self->port = AP3_I2C1_IOM;
+                self->port = AP3_I2C1_IOMASTER;
                 self->scl = I2C_1_DEFAULT_SCL;
                 self->sda = I2C_1_DEFAULT_SDA;
                 break;

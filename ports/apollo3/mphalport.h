@@ -67,6 +67,9 @@ extern uint32_t ap3_get_pincfg(uint32_t ui32Pin,
 
 extern const am_hal_gpio_pincfg_t AP3_GPIO_OPENDRAIN_DEFAULT;
 
+// Unused Apollo3 pin
+#define AP3_GPIO_PAD_UNUSED 0xFF
+
 #define MP_HAL_PIN_FMT "%u"
 #define mp_hal_pin_obj_t uint8_t
 

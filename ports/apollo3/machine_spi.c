@@ -55,10 +55,9 @@ STATIC machine_hw_spi_obj_t machine_hw_spi_obj[AP3_SPI_INTERFACES];
 
 const am_hal_gpio_pincfg_t AP3_SPI_GPIO_DEFAULT =
 {
-    .uFuncSel       = 5,
-    .ePullup        = AM_HAL_GPIO_PIN_PULLUP_1_5K,
+    .uFuncSel       = AP3_SPI_GPIO_FUNCSEL,
     .eDriveStrength = AM_HAL_GPIO_PIN_DRIVESTRENGTH_12MA,
-    .eGPOutcfg      = AM_HAL_GPIO_PIN_OUTCFG_OPENDRAIN
+    .eGPOutcfg      = AM_HAL_GPIO_PIN_OUTCFG_PUSHPULL
 };
 
 STATIC void machine_hw_spi_deinit_internal(machine_hw_spi_obj_t *self) {
@@ -84,9 +83,9 @@ STATIC void machine_hw_spi_init_internal(
     int8_t mode,
     int8_t bits,
     int8_t firstbit,
-    mp_hal_pin_obj_t sck,
-    mp_hal_pin_obj_t mosi,
-    mp_hal_pin_obj_t miso) {
+    int8_t sck,
+    int8_t mosi,
+    int8_t miso) {
 
     // Clear previous config if exists
     if (self->iom) {
@@ -168,8 +167,8 @@ STATIC void machine_hw_spi_transfer(mp_obj_base_t *self_in, size_t len, const ui
     am_hal_iom_transfer_t iomTransfer = {0};
 
     iomTransfer.ui32NumBytes = len;
-    iomTransfer.pui32TxBuffer = (uint32_t *)dest;
-    iomTransfer.pui32RxBuffer = (uint32_t *)src;
+    iomTransfer.pui32TxBuffer = (uint32_t *)src;
+    iomTransfer.pui32RxBuffer = (uint32_t *)dest;
     iomTransfer.ui8Priority = 1;
 
     // Determine direction
@@ -177,11 +176,11 @@ STATIC void machine_hw_spi_transfer(mp_obj_base_t *self_in, size_t len, const ui
     {
         iomTransfer.eDirection = AM_HAL_IOM_FULLDUPLEX;
     }
-    else if (dest != NULL)
+    else if (src != NULL)
     {
         iomTransfer.eDirection = AM_HAL_IOM_TX;
     }
-    else if (src != NULL)
+    else if (dest != NULL)
     {
         iomTransfer.eDirection = AM_HAL_IOM_RX;
     }
@@ -196,13 +195,14 @@ STATIC void machine_hw_spi_transfer(mp_obj_base_t *self_in, size_t len, const ui
         retval = am_hal_iom_blocking_transfer(self->iom, &iomTransfer);
     }
 
-    // Check errors
+    // Check errors ?
+#if 0
     if (retval == AM_HAL_STATUS_TIMEOUT) {
         mp_raise_OSError(MP_ETIMEDOUT);
     } else if (retval != AM_HAL_STATUS_SUCCESS) {
         mp_raise_OSError(MP_EIO);
     }
-    
+#endif
     return;
 }
 
@@ -270,7 +270,7 @@ mp_obj_t machine_hw_spi_make_new(const mp_obj_type_t *type, size_t n_args, size_
 
     enum { ARG_id, ARG_freq, ARG_polarity, ARG_phase, ARG_bits, ARG_firstbit, ARG_sck, ARG_mosi, ARG_miso };
     static const mp_arg_t allowed_args[] = {
-        { MP_QSTR_id,       MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = -1} },
+        { MP_QSTR_id,       MP_ARG_REQUIRED | MP_ARG_OBJ },
         { MP_QSTR_baudrate, MP_ARG_INT, {.u_int = 500000} },
         { MP_QSTR_polarity, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
         { MP_QSTR_phase,    MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
@@ -294,7 +294,7 @@ mp_obj_t machine_hw_spi_make_new(const mp_obj_type_t *type, size_t n_args, size_
     if (self->base.type == NULL) {
         // Created for the first time, set default pins
         self->base.type = &machine_hw_spi_type;
-        self->port = AP3_SPI_IOM0;
+        self->port = AP3_SPI_IOMASTER;
         self->sck = SPI_0_DEFAULT_SCK;
         self->mosi = SPI_0_DEFAULT_MOSI;
         self->miso = SPI_0_DEFAULT_MISO;
@@ -330,9 +330,9 @@ mp_obj_t machine_hw_spi_make_new(const mp_obj_type_t *type, size_t n_args, size_
         spimode,
         args[ARG_bits].u_int,
         args[ARG_firstbit].u_int,
-        args[ARG_sck].u_obj == MP_OBJ_NULL ? -1 : machine_pin_get_id(args[ARG_sck].u_obj),
-        args[ARG_mosi].u_obj == MP_OBJ_NULL ? -1 : machine_pin_get_id(args[ARG_mosi].u_obj),
-        args[ARG_miso].u_obj == MP_OBJ_NULL ? -1 : machine_pin_get_id(args[ARG_miso].u_obj));
+        self->sck,
+        self->mosi,
+        self->miso);
 
     return MP_OBJ_FROM_PTR(self);
 }
