@@ -16,7 +16,7 @@
 // SPI Defines
 #define AP3_SPI_INTERFACES 1
 
-#define AP3_SPI0_IOMASTER 0  // Specify that SPI uses IOMaster 0
+#define AP3_SPI_IOMASTER 0  // Specify that SPI uses IOMaster 0
 #define AP3_SPI_GPIO_FUNCSEL 1
 // SPI pads
 #define SPI_0_DEFAULT_SCK   (5)
