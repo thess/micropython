@@ -30,7 +30,7 @@ FROZEN_MANIFEST ?= boards/manifest.py
 # include py core make definitions
 include $(TOP)/py/py.mk
 
-GIT_SUBMODULES = lib/lwip lib/mbedtls lib/mynewt-nimble lib/stm32lib
+GIT_SUBMODULES = lib/libhydrogen lib/lwip lib/mbedtls lib/mynewt-nimble lib/stm32lib
 
 MCU_SERIES_UPPER = $(shell echo $(MCU_SERIES) | tr '[:lower:]' '[:upper:]')
 CMSIS_MCU_LOWER = $(shell echo $(CMSIS_MCU) | tr '[:upper:]' '[:lower:]')
@@ -41,6 +41,7 @@ HAL_DIR=lib/stm32lib/STM32$(MCU_SERIES_UPPER)xx_HAL_Driver
 USBDEV_DIR=usbdev
 #USBHOST_DIR=usbhost
 DFU=$(TOP)/tools/dfu.py
+MBOOT_PACK_DFU = mboot/mboot_pack_dfu.py
 # may need to prefix dfu-util with sudo
 USE_PYDFU ?= 1
 PYDFU ?= $(TOP)/tools/pydfu.py
@@ -133,7 +134,9 @@ LDFLAGS += --gc-sections
 # Debugging/Optimization
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -DPENDSV_DEBUG
-COPT = -O0
+COPT = -Og
+# Disable text compression in debug builds
+MICROPY_ROM_TEXT_COMPRESSION = 0
 else
 COPT += -Os -DNDEBUG
 endif
@@ -148,7 +151,7 @@ endif
 # Options for mpy-cross
 MPY_CROSS_FLAGS += -march=armv7m
 
-LIB_SRC_C = $(addprefix lib/,\
+LIB_SRC_C += $(addprefix lib/,\
 	libc/string0.c \
 	mp-readline/readline.c \
 	netutils/netutils.c \
@@ -163,7 +166,7 @@ LIB_SRC_C = $(addprefix lib/,\
 	)
 
 ifeq ($(MICROPY_FLOAT_IMPL),double)
-LIBM_SRC_C = $(addprefix lib/libm_dbl/,\
+LIBM_SRC_C += $(addprefix lib/libm_dbl/,\
 	__cos.c \
 	__expo2.c \
 	__fpclassify.c \
@@ -213,7 +216,7 @@ else
 LIBM_SRC_C += lib/libm_dbl/sqrt.c
 endif
 else
-LIBM_SRC_C = $(addprefix lib/libm/,\
+LIBM_SRC_C += $(addprefix lib/libm/,\
 	math.c \
 	acoshf.c \
 	asinfacosf.c \
@@ -255,11 +258,11 @@ ifeq ($(MICROPY_FLOAT_IMPL),double)
 $(LIBM_O): CFLAGS := $(filter-out -Wdouble-promotion -Wfloat-conversion, $(CFLAGS))
 endif
 
-EXTMOD_SRC_C = $(addprefix extmod/,\
+EXTMOD_SRC_C += $(addprefix extmod/,\
 	modonewire.c \
         )
 
-DRIVERS_SRC_C = $(addprefix drivers/,\
+DRIVERS_SRC_C += $(addprefix drivers/,\
 	bus/softspi.c \
 	bus/softqspi.c \
 	memory/spiflash.c \
@@ -363,7 +366,7 @@ SRC_O += \
 endif
 endif
 
-SRC_HAL = $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
+HAL_SRC_C += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
 	hal.c \
 	hal_adc.c \
 	hal_adc_ex.c \
@@ -388,13 +391,13 @@ SRC_HAL = $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
 	)
 
 ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f4 f7 h7 l0 l4 wb))
-SRC_HAL += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
+HAL_SRC_C += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
 	ll_usb.c \
 	)
 endif
 
 ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f4 f7 h7 l4))
-SRC_HAL += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
+HAL_SRC_C += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
 	hal_sd.c \
 	ll_sdmmc.c \
 	ll_fmc.c \
@@ -402,7 +405,7 @@ SRC_HAL += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
 endif
 
 ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f4 f7 h7))
-SRC_HAL += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
+HAL_SRC_C += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
 	hal_mmc.c \
 	hal_sdram.c \
 	hal_dma_ex.c \
@@ -411,14 +414,14 @@ SRC_HAL += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_,\
 endif
 
 ifeq ($(CMSIS_MCU),$(filter $(CMSIS_MCU),STM32H743xx))
-    SRC_HAL += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_, hal_fdcan.c)
+    HAL_SRC_C += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_, hal_fdcan.c)
 else
 ifeq ($(MCU_SERIES),$(filter $(MCU_SERIES),f0 f4 f7 h7 l4))
-    SRC_HAL += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_, hal_can.c)
+    HAL_SRC_C += $(addprefix $(HAL_DIR)/Src/stm32$(MCU_SERIES)xx_, hal_can.c)
 endif
 endif
 
-SRC_USBDEV = $(addprefix $(USBDEV_DIR)/,\
+USBDEV_SRC_C += $(addprefix $(USBDEV_DIR)/,\
 	core/src/usbd_core.c \
 	core/src/usbd_ctlreq.c \
 	core/src/usbd_ioreq.c \
@@ -430,7 +433,6 @@ SRC_USBDEV = $(addprefix $(USBDEV_DIR)/,\
 ifeq ($(MICROPY_PY_BLUETOOTH),1)
 CFLAGS_MOD += -DMICROPY_PY_BLUETOOTH=1
 CFLAGS_MOD += -DMICROPY_PY_BLUETOOTH_ENABLE_CENTRAL_MODE=1
-CFLAGS_MOD += -DMICROPY_PY_BLUETOOTH_GATTS_ON_READ_CALLBACK=1
 endif
 
 ifeq ($(MICROPY_PY_NETWORK_CYW43),1)
@@ -500,6 +502,7 @@ endif
 endif
 
 ifeq ($(MICROPY_BLUETOOTH_NIMBLE),1)
+CFLAGS_MOD += -DMICROPY_PY_BLUETOOTH_ENABLE_L2CAP_CHANNELS=1
 include $(TOP)/extmod/nimble/nimble.mk
 SRC_C += mpnimbleport.c
 endif
@@ -521,11 +524,11 @@ OBJ += $(addprefix $(BUILD)/, $(LIB_SRC_C:.c=.o))
 OBJ += $(LIBM_O)
 OBJ += $(addprefix $(BUILD)/, $(EXTMOD_SRC_C:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(DRIVERS_SRC_C:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(HAL_SRC_C:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(USBDEV_SRC_C:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_CXX:.cpp=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_O))
-OBJ += $(addprefix $(BUILD)/, $(SRC_HAL:.c=.o))
-OBJ += $(addprefix $(BUILD)/, $(SRC_USBDEV:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_MOD:.c=.o))
 OBJ += $(BUILD)/pins_$(BOARD).o
 
@@ -544,7 +547,13 @@ $(PY_BUILD)/formatfloat.o: COPT += -Os
 $(PY_BUILD)/parsenum.o: COPT += -Os
 $(PY_BUILD)/mpprint.o: COPT += -Os
 
-all: $(TOP)/lib/stm32lib/README.md $(BUILD)/firmware.dfu $(BUILD)/firmware.hex
+all: $(TOP)/lib/stm32lib/README.md all_main $(BUILD)/firmware.hex
+
+ifeq ($(MBOOT_ENABLE_PACKING),1)
+all_main: $(BUILD)/firmware.pack.dfu
+else
+all_main: $(BUILD)/firmware.dfu
+endif
 
 # For convenience, automatically fetch required submodules if they don't exist
 $(TOP)/lib/stm32lib/README.md:
@@ -605,6 +614,11 @@ define GENERATE_DFU
 	$(1)
 endef
 
+define GENERATE_PACK_DFU
+	$(ECHO) "GEN $(1)"
+	$(Q)$(PYTHON) $(MBOOT_PACK_DFU) --keys $(MBOOT_PACK_KEYS_FILE) pack-dfu --gzip $(MBOOT_PACK_CHUNKSIZE) $(2) $(1)
+endef
+
 define GENERATE_HEX
 	$(ECHO) "GEN $(1)"
 	$(Q)$(OBJCOPY) -O ihex $(2) $(1)
@@ -612,8 +626,13 @@ endef
 
 .PHONY: deploy deploy-stlink deploy-openocd
 
+ifeq ($(MBOOT_ENABLE_PACKING),1)
+deploy: $(BUILD)/firmware.pack.dfu
+	$(call RUN_DFU,$^)
+else
 deploy: $(BUILD)/firmware.dfu
 	$(call RUN_DFU,$^)
+endif
 
 # A board should specify TEXT0_ADDR if to use a different location than the
 # default for the firmware memory location.  A board can also optionally define
@@ -659,6 +678,9 @@ $(BUILD)/firmware1.bin: $(BUILD)/firmware.elf
 $(BUILD)/firmware.dfu: $(BUILD)/firmware0.bin $(BUILD)/firmware1.bin
 	$(call GENERATE_DFU,$@,$(word 1,$^),$(TEXT0_ADDR),$(word 2,$^),$(TEXT1_ADDR))
 endif
+
+$(BUILD)/firmware.pack.dfu: $(BUILD)/firmware.dfu $(MBOOT_PACK_KEYS_FILE)
+	$(call GENERATE_PACK_DFU,$@,$<)
 
 $(BUILD)/firmware.hex: $(BUILD)/firmware.elf
 	$(call GENERATE_HEX,$@,$^)
