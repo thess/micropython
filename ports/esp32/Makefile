@@ -18,7 +18,13 @@ GIT_SUBMODULES = lib/berkeley-db-1.xx
 
 .PHONY: all clean deploy erase submodules FORCE
 
-IDFPY_FLAGS += -D MICROPY_BOARD=$(BOARD) -B $(BUILD)
+CMAKE_ARGS =
+
+ifdef USER_C_MODULES
+	CMAKE_ARGS += -DUSER_C_MODULES=${USER_C_MODULES}
+endif
+
+IDFPY_FLAGS += -D MICROPY_BOARD=$(BOARD) -B $(BUILD) $(CMAKE_ARGS)
 
 all:
 	idf.py $(IDFPY_FLAGS) build
@@ -37,7 +43,7 @@ deploy:
 	idf.py $(IDFPY_FLAGS) -p $(PORT) -b $(BAUD) flash
 
 erase:
-	idf.py $(IDFPY_FLAGS) erase_flash
+	idf.py $(IDFPY_FLAGS) -p $(PORT) -b $(BAUD) erase_flash
 
 submodules:
 	git submodule update --init $(addprefix ../../,$(GIT_SUBMODULES))
